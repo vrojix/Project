@@ -6,8 +6,9 @@ import tkinter.messagebox as tkmb
 import sqlite3
 import yagmail
 import CTkTable
-from datetime import date
+from datetime import*
 
+#try and add a email queue/buffer which will automatically send when a connection is present again.
 
 global buttoncount
 buttoncount = 0
@@ -48,6 +49,9 @@ cursor.execute('''
     )
 ''')
 db_connection.commit()
+
+cursor.execute('''INSERT OR IGNORE INTO accounts(pk, username, password, teacher,admin) VALUES(0,"" ,"" ,"yes","yes");''')
+cursor.execute('''INSERT OR IGNORE INTO resources(pk, rname, rcount, rmin,rorder) VALUES(0,"books",250,50,200);''')
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("green")
@@ -106,7 +110,7 @@ class Main(ctk.CTkTabview):
                         info_font = ctk.CTkFont(family = "Arial", weight = 'bold', size = 23)
 
                         rname = ctk.CTkLabel(master = self.resulttab,text = self.result[1].upper(), font = info_font)
-                        rname.pack(pady = 150)
+                        rname.pack(pady = 50)
 
                         frame = ctk.CTkFrame(master = self.resulttab, fg_color= 'white')
                         frame.pack(ipady=20, ipadx=80)
@@ -124,13 +128,13 @@ class Main(ctk.CTkTabview):
                         
                         def order():
                             if self.orderflag >0:
-                                ordertime = str(date.today)
+                                ordertime = str(datetime.now(tz=None))
                                 inserted_data = (self.result[1], self.result[4], ordertime)
                                 insert_sql = "INSERT INTO orders(orname,ocount,otime) VALUES(?,?,?)"
                                 cursor.execute(insert_sql, inserted_data)
                                 db_connection.commit()
                                 self.orderbutton.destroy()
-                                sucess = ctk.CTkLabel(master=frame, text="Successfully sent in order request.")
+                                sucess = ctk.CTkLabel(master=frame, text="Successfully sent in order request.", fg_color = "green")
                                 sucess.pack()
                                 self.orderflag = 0
                             self.orderbutton.configure(text = "Confirm?", fg_color="red")
@@ -184,6 +188,7 @@ class Main(ctk.CTkTabview):
                         self.takebutton.pack(pady = "20")
 
                         self.orderbutton = ctk.CTkButton(master=frame, text = "Order", command = order, width=200, height =40)
+                        self.orderbutton.pack()
 
 
                         backbutton = ctk.CTkButton(master = self.resulttab, text = "Back", command=self.add_menu)
