@@ -1,16 +1,15 @@
-from typing import Callable, Optional, Tuple, Union
 import customtkinter as ctk
 from import_setup import *
-import customtkinter as ctk
 import tkinter.messagebox as tkmb
-import sqlite3
-import yagmail
-import CTkTable
-from datetime import*
-
-#try and add a email queue/buffer which will automatically send when a connection is present again.
+import sqlite3,CTkTable,yagmail,hashlib
+from datetime import *
+import customtkinter as ctk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 global buttoncount
+
+
 buttoncount = 0
 
 global adminvar
@@ -48,10 +47,20 @@ cursor.execute('''
                
     )
 ''')
-db_connection.commit()
 
-cursor.execute('''INSERT OR IGNORE INTO accounts(pk, username, password, teacher,admin) VALUES(0,"" ,"" ,"yes","yes");''')
-cursor.execute('''INSERT OR IGNORE INTO resources(pk, rname, rcount, rmin,rorder) VALUES(0,"books",250,50,200);''')
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS inout (
+        incount INTEGER NOT NULL,        
+        outcount INTEGER NOT NULL
+               
+    )
+''')
+
+
+
+
+
+db_connection.commit()
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("green")
@@ -110,7 +119,7 @@ class Main(ctk.CTkTabview):
                         info_font = ctk.CTkFont(family = "Arial", weight = 'bold', size = 23)
 
                         rname = ctk.CTkLabel(master = self.resulttab,text = self.result[1].upper(), font = info_font)
-                        rname.pack(pady = 50)
+                        rname.pack(pady = 150)
 
                         frame = ctk.CTkFrame(master = self.resulttab, fg_color= 'white')
                         frame.pack(ipady=20, ipadx=80)
@@ -128,13 +137,14 @@ class Main(ctk.CTkTabview):
                         
                         def order():
                             if self.orderflag >0:
-                                ordertime = str(datetime.now(tz=None))
+                                ordertime = (datetime.now(tz=None))
+                                ordertime = str(f"{ordertime.year}/{ordertime.day}/{ordertime.month}/{ordertime.hour}:{ordertime.minute}")
                                 inserted_data = (self.result[1], self.result[4], ordertime)
                                 insert_sql = "INSERT INTO orders(orname,ocount,otime) VALUES(?,?,?)"
                                 cursor.execute(insert_sql, inserted_data)
                                 db_connection.commit()
                                 self.orderbutton.destroy()
-                                sucess = ctk.CTkLabel(master=frame, text="Successfully sent in order request.", fg_color = "green")
+                                sucess = ctk.CTkLabel(master=frame, text="Successfully sent in order request.")
                                 sucess.pack()
                                 self.orderflag = 0
                             self.orderbutton.configure(text = "Confirm?", fg_color="red")
@@ -152,6 +162,10 @@ class Main(ctk.CTkTabview):
                             if type(take_amount) != type(string) and take_amount != "" and take_amount > 0 and take_amount<= self.result[2]:
                                 newrcount = self.result[2] - take_amount
                                 cursor.execute('UPDATE resources SET rcount = ? WHERE rname = ?',(newrcount, rsearch))
+                                cursor.execute('SELECT outcount FROM inout')
+                                out = cursor.fetchone()
+                                outamount = out[0] + take_amount
+                                cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
                                 db_connection.commit()
                                 perm = ctk.CTkLabel(master = frame, text_color='green',text = (f"Amount {str(take_amount)} taken successfully."))
                                 perm.pack()
@@ -219,6 +233,187 @@ class Main(ctk.CTkTabview):
         self.button = ctk.CTkButton(master = self.rtm, text = "Back", command = goback2menu)
         self.button.pack()
 
+    def adminMenu(self):
+        self.delete(self.name)
+        self.name = 'Admin'
+        self.admintab = self.add(self.name)     
+        
+        font = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 23)
+        label = ctk.CTkLabel(master = self.admintab, text = "Admin Dashboard",font = font)
+        label.grid(row = 0, column = 1) 
+
+        self.admintab.grid_columnconfigure(0, weight = 1)
+        self.admintab.grid_columnconfigure(1, weight = 1)
+        self.admintab.grid_columnconfigure(2, weight = 1)
+        self.admintab.grid_rowconfigure(0, weight = 1)
+        self.admintab.grid_rowconfigure(1, weight = 1)
+        self.admintab.grid_rowconfigure(2, weight = 1)
+        center_frame = ctk.CTkFrame(self.admintab, width=500, height= 500)
+        center_frame.grid(row = 1,column = 1)
+        center_frame.grid_propagate(False)
+        
+        left_frame = ctk.CTkFrame(self.admintab,width=500, height= 500)
+        left_frame.grid(row = 1,column = 0)
+        left_frame.grid_propagate(False)
+
+        right_frame = ctk.CTkFrame(self.admintab,width=500, height= 500)
+        right_frame.grid(row = 1,column = 2)
+
+
+        bottom_frame = ctk.CTkScrollableFrame(self.admintab)
+        bottom_frame.grid(row=2, column=0,padx = 65, pady=20, columnspan=3,sticky = "nsew")
+
+        tabview = ctk.CTkTabview(master = bottom_frame)
+        tabview.pack()
+        current_stored = tabview.add("Current Stored")
+        orders = tabview.add("Orders")
+
+        cursor.execute('SELECT rname FROM resources')
+        result = cursor.fetchall()
+
+        cursor.execute('SELECT * FROM orders')
+        orders_result = cursor.fetchall()
+        table = CTkTable.CTkTable(master = current_stored, values = result)
+        table.pack()
+        right_frame.grid_rowconfigure(0, weight = 1)
+        right_frame.grid_columnconfigure(0, weight = 1)
+        #chart creation        
+        figure = Figure(figsize=(4, 4), dpi=100)
+        subplot = figure.add_subplot(2, 1, 1)
+        categories = ['In', 'Out']
+        cursor.execute('SELECT incount,outcount FROM inout')
+        count = cursor.fetchone()
+        values = [count[0],count[1]]
+        subplot.bar(categories, values)
+        subplot.set_title('In and Out')
+        subplot.set_xlabel('In/Out')
+        subplot.set_ylabel('Amount')
+        canvas = FigureCanvasTkAgg(figure, master=right_frame)
+        canvas.draw()
+        canvas.get_tk_widget().grid(row = 0,column=0)
+        right_frame.grid_propagate(False)
+        #end of chart
+
+
+
+        def clear1():
+            def clear():
+                cursor.execute('DELETE FROM orders WHERE pk <> 0')
+                db_connection.commit()
+                clearButton.configure(text = "Cleared", fg_color = "red")
+            clearButton.configure(text  = "Are you sure", command = clear)
+        clearButton = ctk.CTkButton(master = orders, text ="Clear",command = clear1)    
+        clearButton.pack()
+
+        otable = CTkTable.CTkTable(master = orders, values = orders_result)
+        otable.pack()
+
+        def gobackmenu2():
+            self.add_menu()
+        goback = ctk.CTkButton(master = self.admintab, text= "Back", command =gobackmenu2, )
+        goback.grid(row = 3,column = 1)
+
+                
+        #just a reused piece of code which has the search functions commands and conditions with some operations flipped
+        def add():
+            self.delete(self.name)
+            self.name = "New Resource"
+            self.newre = self.add(self.name)
+            global rsearch
+            self.newre.grid_columnconfigure(1,weight = 1)
+            self.newre.grid_rowconfigure(0,weight = 1)
+            frame = ctk.CTkFrame(master =self.newre, height=500, width=500)
+            frame.grid(row = 0,column = 1)
+            frame.propagate(False)
+
+            resource_entry = ctk.CTkEntry(master = frame, placeholder_text = "Resource name or ID")
+            resource_entry.pack(pady = 30)
+            cursor.execute('SELECT rname FROM resources')
+            result = cursor.fetchall()
+            table = CTkTable.CTkTable(frame, values = result)
+
+            def search():
+                if resource_entry.get() != "":
+                    rsearch = resource_entry.get().strip()
+
+                    cursor.execute('SELECT * FROM resources WHERE rname = ?', (rsearch,))
+                    result = cursor.fetchone()
+                    if result is not None:
+                        def showinfo():
+                            self.delete(self.name)
+                            self.name = "Info"
+                            self.info = self.add(self.name)
+                            info_font = ctk.CTkFont(family = "Arial", weight = 'bold', size = 23)
+
+                            rname = ctk.CTkLabel(master = self.info, text = result[1].upper(), font = info_font)
+                            rname.pack(pady = 20)
+
+                            frame = ctk.CTkFrame(master = self.info, fg_color= 'white',height= 500,width=500)
+                            frame.pack(pady=30, padx=40)
+
+                        
+                            rcount = ctk.CTkLabel(master = frame, text = ('Current count:', result[2]), font = info_font, text_color = 'black') 
+                            rcount.pack(pady = 20)
+
+                            rmin = ctk.CTkLabel(master = frame, text = ('Minimum count:', result[3]), font = info_font, text_color = 'black')
+                            rmin.pack(pady = 20)
+                            
+                            addamount = ctk.CTkEntry(master = frame, placeholder_text= 'Enter Amount to add')
+                            addamount.pack()
+
+
+                            def add2():                            
+                                add_amount = addamount.get()
+                                add_amount = int(add_amount)
+                                if addamount.get() != "":
+                                    if  add_amount > 0:
+                                        newrcount = result[2]+add_amount
+
+                                        cursor.execute('UPDATE resources SET rcount = ? WHERE rname = ?',(newrcount, rsearch))
+                                        cursor.execute('SELECT incount FROM inout')
+                                        inamount = cursor.fetchone()
+                                        plus = inamount[0] + add_amount
+                                        cursor.execute('UPDATE inout SET incount = ?',(plus,))
+                                        db_connection.commit()
+
+                                        tkmb.showinfo(title = "Success", message = ("Ammount", str(add_amount), "Has been added sucessfully"))
+                                        cursor.execute('SELECT * FROM resources WHERE rname = ?',(rsearch,))
+
+                                    else:
+                                        tkmb.showerror(message = 'Enter a Positive Real value', title = 'Invalid input')
+
+                                else:
+                                    tkmb.showerror(message = 'Enter a Positive Real value', title = 'Invalid input')
+                            button = ctk.CTkButton(master = frame, text = "Add", command = add2)
+                            button.pack(pady = 20)
+                            back = ctk.CTkButton(frame,text="Back", command =self.adminlaunch)
+                            back.pack(pady = 20)
+                            frame.propagate(False)
+                        showinfo()
+                    else:
+                        tkmb.showerror(message = "This item doesnt exist", title = "Missing item")
+
+                else:
+                    tkmb.showerror(message = "Please enter a value")
+
+            button = ctk.CTkButton(master = frame, text = "Search", command = search)
+            button.pack(pady =20)
+            table.pack()
+        button = ctk.CTkButton(master = center_frame, text = "Add Equipment",command = add)
+        center_frame.grid_columnconfigure(0, weight = 1)
+        center_frame.grid_rowconfigure(0, weight = 1)
+        button.grid(row = 0, column = 0)
+
+
+        
+    def adminlaunch(self):
+        if adminvar == True:
+            self.adminMenu()
+        else:
+            tkmb.showerror(message = "You don't have admin access.", title = "No Permission")
+
+
+
     #The following add function switches from the previous stored frame and uses
     def add_menu(self):
         self.delete(self.name)
@@ -234,7 +429,7 @@ class Main(ctk.CTkTabview):
         button = ctk.CTkButton(master = frame, text = "Resource Tracker", width = 180, height = 32,command = self.trackMenu)
         button.pack(pady = 30)    
 
-        button = ctk.CTkButton(master = frame, text = "Admin Login", width = 180, height = 32, command=None)
+        button = ctk.CTkButton(master = frame, text = "Admin Login", width = 180, height = 32, command=self.adminlaunch)
         button.pack(pady = 30)
 
         def logout():
@@ -242,7 +437,7 @@ class Main(ctk.CTkTabview):
             global buttoncount
             global adminvar
             buttoncount = 0 
-            adminvar = 0
+            adminvar = False
             self.add_logintab()
         button = ctk.CTkButton(master = frame, text = "Logout", width = 150, height = 30, command = logout)
         button.pack(pady = 25)
@@ -254,7 +449,9 @@ class Main(ctk.CTkTabview):
         entered_username = self.user_entry.get().strip()
         entered_password = self.user_pass.get()
 
-        cursor.execute('SELECT * FROM accounts WHERE username = ? AND password = ? AND teacher = ?', (entered_username, entered_password,"yes"))
+        #We need to hash the password to increase the security.
+        hashed_password = hashlib.sha1(entered_password.encode()).hexdigest()
+        cursor.execute('SELECT * FROM accounts WHERE username = ? AND password = ? AND teacher = ?', (entered_username, hashed_password,"yes"))
         result = cursor.fetchone()
 
 
@@ -264,9 +461,9 @@ class Main(ctk.CTkTabview):
                 buttoncount = buttoncount + 1
                 self.add_menu()
                 if result[4] == "yes":
-                    adminvar = 1
+                    adminvar = True
                 else:
-                    adminvar = 0
+                    adminvar = False
     
             else:
                 
@@ -293,4 +490,5 @@ class App(ctk.CTk):
     
 app = App()
 app.after(0, lambda:app.state("zoomed"))
+app.geometry("800x800")
 app.mainloop()
