@@ -1,5 +1,4 @@
 import customtkinter as ctk
-from import_setup import *
 import tkinter.messagebox as tkmb
 import sqlite3,CTkTable,yagmail,hashlib
 from datetime import *
@@ -266,17 +265,19 @@ class Main(ctk.CTkTabview):
         tabview = ctk.CTkTabview(master = bottom_frame)
         tabview.pack()
         current_stored = tabview.add("Current Stored")
-        orders = tabview.add("Orders")
+
 
         cursor.execute('SELECT rname FROM resources')
         result = cursor.fetchall()
 
         cursor.execute('SELECT * FROM orders')
         orders_result = cursor.fetchall()
+        
         table = CTkTable.CTkTable(master = current_stored, values = result)
         table.pack()
         right_frame.grid_rowconfigure(0, weight = 1)
         right_frame.grid_columnconfigure(0, weight = 1)
+        
         #chart creation        
         figure = Figure(figsize=(4, 4), dpi=100)
         subplot = figure.add_subplot(2, 1, 1)
@@ -302,11 +303,13 @@ class Main(ctk.CTkTabview):
                 db_connection.commit()
                 clearButton.configure(text = "Cleared", fg_color = "red")
             clearButton.configure(text  = "Are you sure", command = clear)
-        clearButton = ctk.CTkButton(master = orders, text ="Clear",command = clear1)    
-        clearButton.pack()
 
-        otable = CTkTable.CTkTable(master = orders, values = orders_result)
-        otable.pack()
+        if bool(orders_result):
+            orders = tabview.add("Orders")
+            clearButton = ctk.CTkButton(master = orders, text ="Clear",command = clear1)    
+            clearButton.pack()
+            otable = CTkTable.CTkTable(master = orders, values = orders_result)
+            otable.pack()
 
         def gobackmenu2():
             self.add_menu()
