@@ -54,7 +54,21 @@ cursor.execute('''
     )
 ''')
 
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS log (
+        action TEXT NOT NULL,        
+        amount INTEGER NOT NULL,
+        account TEXT,
+        time TEXT
+    )
+''')
 
+
+cursor.execute('SELECT outcount FROM inout')
+check = cursor.fetchone()
+if check == None:
+    cursor.execute('INSERT INTO inout(outcount,incount) VALUES(0,0)')
+    db_connection.commit()
 
 
 
@@ -162,14 +176,11 @@ class Main(ctk.CTkTabview):
                                 cursor.execute('UPDATE resources SET rcount = ? WHERE rname = ?',(newrcount, rsearch))
                                 cursor.execute('SELECT outcount FROM inout')
                                 out = cursor.fetchone()
-                                if out == None:
-                                    cursor.execute('INSERT INTO inout(outcount,incount) VALUES(0,0)')
-                                    db_connection.commit()
-                                    out = cursor.fetchone()
-
-                                print(out)
                                 outamount = out[0] + take_amount
                                 cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
+                                time = (datetime.now(tz=None))
+                                time = str(f"{time.year}/{time.day}/{time.month}/{time.hour}:{time.minute}")
+                                cursor.execute('INSERT INTO log(action,amount,account,time) VALUES(?,?,?,?)', ("Take", take_amount, self.current_log, time))
                                 db_connection.commit()
                                 perm = ctk.CTkLabel(master = frame, text_color='green',text = (f"Amount {str(take_amount)} taken successfully."))
                                 perm.pack()
@@ -252,13 +263,14 @@ class Main(ctk.CTkTabview):
         self.admintab.grid_rowconfigure(0, weight = 1)
         self.admintab.grid_rowconfigure(1, weight = 1)
         self.admintab.grid_rowconfigure(2, weight = 1)
+        
         center_frame = ctk.CTkFrame(self.admintab, width=500, height= 500)
         center_frame.grid(row = 1,column = 1)
         center_frame.grid_propagate(False)
         
-        left_frame = ctk.CTkFrame(self.admintab,width=500, height= 500)
+        #in this frame you can add in a log for the people who have logged in and the actions that they have taken.
+        left_frame = ctk.CTkScrollableFrame(self.admintab,width=500, height= 500)
         left_frame.grid(row = 1,column = 0)
-        left_frame.grid_propagate(False)
 
         right_frame = ctk.CTkFrame(self.admintab,width=500, height= 500)
         right_frame.grid(row = 1,column = 2)
@@ -282,11 +294,13 @@ class Main(ctk.CTkTabview):
         table.pack()
         right_frame.grid_rowconfigure(0, weight = 1)
         right_frame.grid_columnconfigure(0, weight = 1)
+        left_frame.grid_rowconfigure(0, weight = 1)
+        left_frame.grid_columnconfigure(0, weight = 1)
         
         #chart creation
                 
-        figure = Figure(figsize=(4, 4), dpi=100)
-        subplot = figure.add_subplot(2, 1, 1)
+        figure = Figure(figsize=(5, 5), dpi=100)
+        subplot = figure.add_subplot(1  , 1, 1)
         categories = ['In', 'Out']
         cursor.execute('SELECT incount,outcount FROM inout')
         count = cursor.fetchone()
@@ -306,7 +320,18 @@ class Main(ctk.CTkTabview):
             no_data.grid()
             right_frame.grid_propagate(False)
 
-
+        cursor.execute('SELECT * FROM log ORDER BY time  DESC')
+        logs = cursor.fetchall()
+        print(logs)
+        try:
+            logtext = ctk.CTkLabel(master = left_frame, text = "Logs", font = font)
+            logtext.grid(row = 0, column= 0, pady = (0,10))
+            table = CTkTable.CTkTable(master=left_frame, values = logs)
+            table.add_row(values = ["Action","Amount", "User","Time"], index = 0)
+            table.grid(row = 1, column = 0) 
+        except:
+            pass
+        
         def clear1():
             def clear():
                 cursor.execute('DELETE FROM orders WHERE pk <> 0')
@@ -391,6 +416,9 @@ class Main(ctk.CTkTabview):
                                         inamount = cursor.fetchone()
                                         plus = inamount[0] + add_amount
                                         cursor.execute('UPDATE inout SET incount = ?',(plus,))
+                                        time = (datetime.now(tz=None))
+                                        time = str(f"{time.year}/{time.day}/{time.month}/{time.hour}:{time.minute}")
+                                        cursor.execute('INSERT INTO log(action,amount,account,time) VALUES(?,?,?,?)', ("Add", add_amount, self.current_log, time))
                                         db_connection.commit()
 
                                         tkmb.showinfo(title = "Success", message = ("Ammount", str(add_amount), "Has been added sucessfully"))
@@ -455,6 +483,7 @@ class Main(ctk.CTkTabview):
             global adminvar
             buttoncount = 0 
             adminvar = False
+            self.current_log = None
             self.add_logintab()
         button = ctk.CTkButton(master = frame, text = "Logout", width = 150, height = 30, command = logout)
         button.pack(pady = 25)
@@ -466,6 +495,7 @@ class Main(ctk.CTkTabview):
         entered_username = self.user_entry.get().strip()
         entered_password = self.user_pass.get()
 
+        
         #We need to hash the password to increase the security.
         hashed_password = hashlib.sha1(entered_password.encode()).hexdigest()
         cursor.execute('SELECT * FROM accounts WHERE username = ? AND password = ? AND teacher = ?', (entered_username, hashed_password,"yes"))
@@ -476,6 +506,7 @@ class Main(ctk.CTkTabview):
             if result:
                 tkmb.showinfo(title="Login Approved", message="You have logged in successfully")
                 buttoncount = buttoncount + 1
+                self.current_log = self.user_entry.get().strip()
                 self.add_menu()
                 if result[4] == "yes":
                     adminvar = True
