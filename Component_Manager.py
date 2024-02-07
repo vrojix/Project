@@ -5,7 +5,6 @@ from datetime import *
 import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-
 global buttoncount
 
 
@@ -163,6 +162,12 @@ class Main(ctk.CTkTabview):
                                 cursor.execute('UPDATE resources SET rcount = ? WHERE rname = ?',(newrcount, rsearch))
                                 cursor.execute('SELECT outcount FROM inout')
                                 out = cursor.fetchone()
+                                if out == None:
+                                    cursor.execute('INSERT INTO inout(outcount,incount) VALUES(0,0)')
+                                    db_connection.commit()
+                                    out = cursor.fetchone()
+
+                                print(out)
                                 outamount = out[0] + take_amount
                                 cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
                                 db_connection.commit()
@@ -278,23 +283,28 @@ class Main(ctk.CTkTabview):
         right_frame.grid_rowconfigure(0, weight = 1)
         right_frame.grid_columnconfigure(0, weight = 1)
         
-        #chart creation        
+        #chart creation
+                
         figure = Figure(figsize=(4, 4), dpi=100)
         subplot = figure.add_subplot(2, 1, 1)
         categories = ['In', 'Out']
         cursor.execute('SELECT incount,outcount FROM inout')
         count = cursor.fetchone()
-        values = [count[0],count[1]]
-        subplot.bar(categories, values)
-        subplot.set_title('In and Out')
-        subplot.set_xlabel('In/Out')
-        subplot.set_ylabel('Amount')
-        canvas = FigureCanvasTkAgg(figure, master=right_frame)
-        canvas.draw()
-        canvas.get_tk_widget().grid(row = 0,column=0)
-        right_frame.grid_propagate(False)
+        try:
+            values = [count[0],count[1]]
+            subplot.bar(categories, values)
+            subplot.set_title('In and Out')
+            subplot.set_xlabel('In/Out')
+            subplot.set_ylabel('Amount')
+            canvas = FigureCanvasTkAgg(figure, master=right_frame)
+            canvas.draw()
+            canvas.get_tk_widget().grid(row = 0,column=0)
+            right_frame.grid_propagate(False)
         #end of chart
-
+        except:
+            no_data = ctk.CTkLabel(right_frame, text = "No Data")
+            no_data.grid()
+            right_frame.grid_propagate(False)
 
 
         def clear1():
@@ -303,13 +313,17 @@ class Main(ctk.CTkTabview):
                 db_connection.commit()
                 clearButton.configure(text = "Cleared", fg_color = "red")
             clearButton.configure(text  = "Are you sure", command = clear)
-
-        if bool(orders_result):
-            orders = tabview.add("Orders")
-            clearButton = ctk.CTkButton(master = orders, text ="Clear",command = clear1)    
-            clearButton.pack()
+        orders = tabview.add("Orders")
+        try:
             otable = CTkTable.CTkTable(master = orders, values = orders_result)
-            otable.pack()
+            otable.grid(row =1, column = 2)
+            clearButton = ctk.CTkButton(master = orders, text ="Clear",command = clear1)    
+            clearButton.grid(row =0,column=2)
+
+        except:
+            no_orders = ctk.CTkLabel(orders, text = "No Orders")
+            no_orders.pack()
+            
 
         def gobackmenu2():
             self.add_menu()
