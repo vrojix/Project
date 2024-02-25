@@ -59,7 +59,8 @@ cursor.execute('''
         action TEXT NOT NULL,        
         amount INTEGER NOT NULL,
         account TEXT,
-        time TEXT
+        time TEXT,
+        pk INTEGER PRIMARY KEY NOT NULL
     )
 ''')
 
@@ -179,15 +180,14 @@ class Main(ctk.CTkTabview):
                                 outamount = out[0] + take_amount
                                 cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
                                 time = (datetime.now(tz=None))
-                                time = str(f"{time.year}/{time.day}/{time.month}/{time.hour}:{time.minute}")
+                                time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
                                 cursor.execute('INSERT INTO log(action,amount,account,time) VALUES(?,?,?,?)', ("Take", take_amount, self.current_log, time))
                                 db_connection.commit()
                                 perm = ctk.CTkLabel(master = frame, text_color='green',text = (f"Amount {str(take_amount)} taken successfully."))
                                 perm.pack()
-                                self.after(1500,perm.destroy) 
+                                self.after(1500,perm.destroy)
 
-
-                                if self.result[2]< self.result[3]:
+                                if self.result[2]< self.result[3] or take_amount>=self.result[2]:
                                     try:
                                         yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
 
@@ -278,16 +278,17 @@ class Main(ctk.CTkTabview):
 
         bottom_frame = ctk.CTkScrollableFrame(self.admintab)
         bottom_frame.grid(row=2, column=0,padx = 65, pady=20, columnspan=3,sticky = "nsew")
-
         tabview = ctk.CTkTabview(master = bottom_frame)
         tabview.pack()
+        orders = tabview.add("Orders")
         current_stored = tabview.add("Current Stored")
+
 
 
         cursor.execute('SELECT rname FROM resources')
         result = cursor.fetchall()
-
-        cursor.execute('SELECT * FROM orders')
+        #Fetches all data from the orders table in the database. 
+        cursor.execute('SELECT * FROM orders ORDER BY pk DESC')
         orders_result = cursor.fetchall()
         
         table = CTkTable.CTkTable(master = current_stored, values = result)
@@ -320,31 +321,36 @@ class Main(ctk.CTkTabview):
             no_data.grid()
             right_frame.grid_propagate(False)
 
-        cursor.execute('SELECT * FROM log ORDER BY time  DESC')
+        cursor.execute('SELECT * FROM log ORDER BY pk DESC')
         logs = cursor.fetchall()
-        print(logs)
         try:
             logtext = ctk.CTkLabel(master = left_frame, text = "Logs", font = font)
             logtext.grid(row = 0, column= 0, pady = (0,10))
             table = CTkTable.CTkTable(master=left_frame, values = logs)
-            table.add_row(values = ["Action","Amount", "User","Time"], index = 0)
+            table.add_row(values = ["Action","Amount", "User","Time","Order"], index = 0)
+            table.delete_column(4)
             table.grid(row = 1, column = 0) 
         except:
             pass
         
+        #This is the function which will link to a button allowing 
+        #For the table's information to be cleared.
         def clear1():
             def clear():
                 cursor.execute('DELETE FROM orders WHERE pk <> 0')
                 db_connection.commit()
                 clearButton.configure(text = "Cleared", fg_color = "red")
+                
             clearButton.configure(text  = "Are you sure", command = clear)
-        orders = tabview.add("Orders")
+        #Will try and create the orders table inside of the tab.
         try:
             otable = CTkTable.CTkTable(master = orders, values = orders_result)
             otable.grid(row =1, column = 2)
+            otable.add_row(values = ["OrderID","Resource Name","Order Amount","Time"], index = 0)
+            otable.delete_column(0)
             clearButton = ctk.CTkButton(master = orders, text ="Clear",command = clear1)    
             clearButton.grid(row =0,column=2)
-
+        #If it can't it will just  say in the orders tab "No Orders"
         except:
             no_orders = ctk.CTkLabel(orders, text = "No Orders")
             no_orders.pack()
@@ -417,7 +423,7 @@ class Main(ctk.CTkTabview):
                                         plus = inamount[0] + add_amount
                                         cursor.execute('UPDATE inout SET incount = ?',(plus,))
                                         time = (datetime.now(tz=None))
-                                        time = str(f"{time.year}/{time.day}/{time.month}/{time.hour}:{time.minute}")
+                                        time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
                                         cursor.execute('INSERT INTO log(action,amount,account,time) VALUES(?,?,?,?)', ("Add", add_amount, self.current_log, time))
                                         db_connection.commit()
 
@@ -444,10 +450,16 @@ class Main(ctk.CTkTabview):
             button = ctk.CTkButton(master = frame, text = "Search", command = search)
             button.pack(pady =20)
             table.pack()
-        button = ctk.CTkButton(master = center_frame, text = "Add Equipment",command = add)
+        button = ctk.CTkButton(master = center_frame, text = "Add to Equipment",command = add)
+        add_resource_button = ctk.CTkButton(master = center_frame, text = "Add Resource",command = None)
+        add_account_button = ctk.CTkButton(master = center_frame, text = "Create New Account",command = None)
         center_frame.grid_columnconfigure(0, weight = 1)
         center_frame.grid_rowconfigure(0, weight = 1)
+        center_frame.grid_rowconfigure(1, weight = 1)
+        center_frame.grid_rowconfigure(2, weight = 1)
         button.grid(row = 0, column = 0)
+        add_resource_button.grid(row = 1, column = 0)
+        add_account_button.grid(row = 2, column = 0)
 
 
         
@@ -534,8 +546,10 @@ class App(ctk.CTk):
         self.container = Main(self.frame)
         self.container.pack(fill ='both', expand = True)
         self.container.add_logintab()
-
     
+
+
+
 app = App()
 app.after(0, lambda:app.state("zoomed"))
 app.geometry("800x800")
