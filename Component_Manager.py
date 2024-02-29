@@ -60,6 +60,7 @@ cursor.execute('''
         amount INTEGER NOT NULL,
         account TEXT,
         time TEXT,
+        item TEXT,
         pk INTEGER PRIMARY KEY NOT NULL
     )
 ''')
@@ -181,13 +182,13 @@ class Main(ctk.CTkTabview):
                                 cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
                                 time = (datetime.now(tz=None))
                                 time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
-                                cursor.execute('INSERT INTO log(action,amount,account,time) VALUES(?,?,?,?)', ("Take", take_amount, self.current_log, time))
+                                cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("Take", take_amount, self.current_log, time,self.result[1]))
                                 db_connection.commit()
                                 perm = ctk.CTkLabel(master = frame, text_color='green',text = (f"Amount {str(take_amount)} taken successfully."))
                                 perm.pack()
                                 self.after(1500,perm.destroy)
-
-                                if self.result[2]< self.result[3] or take_amount>=self.result[2]:
+                                
+                                if self.result[2]<= self.result[3] or take_amount>=self.result[2]:
                                     try:
                                         yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
 
@@ -284,15 +285,17 @@ class Main(ctk.CTkTabview):
         current_stored = tabview.add("Current Stored")
 
 
-
+        
         cursor.execute('SELECT rname FROM resources')
         result = cursor.fetchall()
         #Fetches all data from the orders table in the database. 
         cursor.execute('SELECT * FROM orders ORDER BY pk DESC')
         orders_result = cursor.fetchall()
-        
-        table = CTkTable.CTkTable(master = current_stored, values = result)
-        table.pack()
+        try:
+            table = CTkTable.CTkTable(master = current_stored, values = result)
+            table.pack()
+        except:
+            pass
         right_frame.grid_rowconfigure(0, weight = 1)
         right_frame.grid_columnconfigure(0, weight = 1)
         left_frame.grid_rowconfigure(0, weight = 1)
@@ -323,12 +326,13 @@ class Main(ctk.CTkTabview):
 
         cursor.execute('SELECT * FROM log ORDER BY pk DESC')
         logs = cursor.fetchall()
+        #This tries to add a table with logs on it.
         try:
             logtext = ctk.CTkLabel(master = left_frame, text = "Logs", font = font)
             logtext.grid(row = 0, column= 0, pady = (0,10))
             table = CTkTable.CTkTable(master=left_frame, values = logs)
-            table.add_row(values = ["Action","Amount", "User","Time","Order"], index = 0)
-            table.delete_column(4)
+            table.add_row(values = ["Action","Amount", "User","Time","From","Order"], index = 0)
+            table.delete_column(5)
             table.grid(row = 1, column = 0) 
         except:
             pass
@@ -361,11 +365,171 @@ class Main(ctk.CTkTabview):
         goback = ctk.CTkButton(master = self.admintab, text= "Back", command =gobackmenu2, )
         goback.grid(row = 3,column = 1)
 
+        
+        def new_re():
+            self.delete(self.name)
+            self.name = "New Resource"
+            self.new = self.add(self.name)
+            
+            self.new.grid_columnconfigure(0, weight = 1)
+            self.new.grid_columnconfigure(1, weight = 1)
+            self.new.grid_columnconfigure(2,weight = 1)
+            self.new.grid_rowconfigure(0, weight = 1)
+            self.new.grid_rowconfigure(1, weight = 1)
+            self.new.grid_rowconfigure(2,weight = 1)
+            font = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 23)
+            label = ctk.CTkLabel(master = self.new, text = "Add New Resource",font = font)
+            label.grid(row = 0, column = 1) 
+                        
+            frame = ctk.CTkFrame(master = self.new,width=500, height= 650)
+            #All frame dimensions 
+            frame.grid_columnconfigure(0, weight = 1)
+            frame.grid_columnconfigure(1, weight = 1)
+            frame.grid_columnconfigure(2, weight = 1)
+            frame.grid_rowconfigure(3, weight = 1)   
+                     
+            frame.grid_rowconfigure(0, weight = 1)
+            frame.grid_rowconfigure(1, weight = 1)
+            frame.grid_rowconfigure(2, weight = 1)
+            frame.grid_rowconfigure(3, weight = 1)
+            frame.grid(row = 1,column=1)
+            frame.grid_propagate(False)
+            font2 = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 15)
+            enter_name = ctk.CTkLabel(frame, text = "Enter Resource Name:", font = font2)            
+            enter_name.grid(row = 0, column = 0)
+            enter_count = ctk.CTkLabel(frame, text = "Enter Resource Count:", font = font2)            
+            enter_count.grid(row = 1, column = 0)
+            enter_min = ctk.CTkLabel(frame, text = "Enter Resource Minimum:", font = font2)            
+            enter_min.grid(row = 2, column = 0)    
+            enter_order = ctk.CTkLabel(frame, text = "Enter Resource Order:", font = font2)            
+            enter_order.grid(row = 3, column = 0)         
+            rname = ctk.CTkEntry(master = frame,placeholder_text="Enter Resource Name")
+            rname.grid(row = 0 ,column = 1)
+            rcount = ctk.CTkEntry(master = frame, placeholder_text="Enter Current Count")
+            rcount.grid(row = 1,column = 1)
+            rorder = ctk.CTkEntry(master = frame, placeholder_text="Enter Minimum Order")
+            rorder.grid(row =2,column = 1)
+            rmin =ctk.CTkEntry(master = frame, placeholder_text="Enter Minimum Amount")
+            rmin.grid(row =3, column=1)              
+            def create():
+                if rname.get() !="":
+                    name = rname.get()
+                    count = rcount.get()
+                    min = rmin.get()
+                    order = rorder.get()
+                    def add2table():
+                        try:
+                            cursor.execute('INSERT INTO resources (rname,rcount,rmin,rorder) VALUES(?,?,?,?)',(name,count,min,order,))
+                            db_connection.commit()
+                            self.adminMenu()
+                            
+                        except:
+                            tkmb.showerror(title = "Resource Already Exist", message="Resource already exist")
+                    
+                    try:
+                        int(count)
+                        int(min)
+                        int(order)
+                        add2table()
+                    except:
+                        tkmb.showwarning(title = "Int Error",message= "Counts entered aren't Integer")
+
+                
+            
+            create = ctk.CTkButton(frame, text = "Create", command = create)
+            create.grid(row = 4, column =1)
+            back = ctk.CTkButton(frame,text="Back",command = self.adminMenu)
+            back.grid(row=4,column =0)
+        
+        def new_ac():
+            self.delete(self.name)
+            self.name = "New Account"
+            self.account = self.add(self.name)
+            
+            self.account.grid_columnconfigure(0, weight = 1)
+            self.account.grid_columnconfigure(1, weight = 1)
+            self.account.grid_columnconfigure(2,weight = 1)
+            self.account.grid_rowconfigure(0, weight = 1)
+            self.account.grid_rowconfigure(1, weight = 1)
+            self.account.grid_rowconfigure(2,weight = 1)
+            
+            font = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 23)
+            label = ctk.CTkLabel(master = self.account, text = "Create New Account",font = font)
+            label.grid(row = 0, column = 1) 
+                        
+            frame = ctk.CTkFrame(master = self.account,width=500, height= 650)
+            frame.grid_columnconfigure(0, weight = 1)
+            frame.grid_columnconfigure(1, weight = 1)
+            frame.grid_columnconfigure(2, weight = 1)
+            frame.grid_rowconfigure(3, weight = 1)   
+                     
+            frame.grid_rowconfigure(0, weight = 1)
+            frame.grid_rowconfigure(1, weight = 1)
+            frame.grid_rowconfigure(2, weight = 1)
+            frame.grid_rowconfigure(3, weight = 1)
+            frame.grid(row = 1,column=1)
+            frame.grid_propagate(False)
+            font2 = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 15)
+            enter_name = ctk.CTkLabel(frame, text = "Enter Account Name:", font = font2)            
+            enter_name.grid(row = 0, column = 0)
+            enter_pass = ctk.CTkLabel(frame, text = "Enter Password:", font = font2)            
+            enter_pass.grid(row = 1, column = 0)   
+            conf_pass = ctk.CTkLabel(frame, text = "Confirm Password:", font = font2)            
+            conf_pass.grid(row = 2, column = 0)   
+            clearance = ctk.CTkLabel(frame, text = "Clearance level Admin?:", font = font2)            
+            clearance.grid(row = 3, column = 0)         
+            username = ctk.CTkEntry(master = frame,placeholder_text="Enter Username")
+            username.grid(row = 0 ,column = 1)
+            password = ctk.CTkEntry(master = frame, placeholder_text="Enter Password",show = "*")
+            password.grid(row = 1,column = 1)
+            confpassword = ctk.CTkEntry(master = frame, placeholder_text="Confirm Password",show ="*")
+            confpassword.grid(row = 2,column = 1)
+            choice = ctk.CTkOptionMenu(master = frame, values=["No", "Yes"])
+            choice.grid(row =3,column = 1)
+            
+            def confirm():
+                if confpassword.get() == password.get() and username.get() != "" and len(confpassword.get())>=5:
+                    if choice.get() == "Yes":
+                        import random
+                        key = ""
+                        for i in range(0,6):
+                            key = key+str(random.randint(0,9))   
+                        yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
+
+                        to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
+                        subject = 'DO NOT RESPOND'
+                        body = (f"Confirmation key: {key}")
+
+
+                        yag.send(to=to, subject=subject, contents=body)
+                        yag.close()
+                        
+                        check = ctk.CTkInputDialog(text = "If you want to create a new admin account, please enter the key sent to the first admin's email")
+                        if check.get_input()==key:
+                            hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                            cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
+                            db_connection.commit()
+                            self.adminMenu()
+                    else:
+                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
+                        db_connection.commit()
+                        self.adminMenu()
+                else:                    
+                    tkmb.showwarning(text = "Please enter information properly", title = "Invalid Input")
+                        
+                        
+                        
+                        
+            confirmbut = ctk.CTkButton(frame,text = "Confirm", command= confirm)
+            confirmbut.grid(row = 4,column =1)
+            back = ctk.CTkButton(frame, command = self.adminMenu, text= "Back")
+            back.grid(row = 4, column= 0)
                 
         #just a reused piece of code which has the search functions commands and conditions with some operations flipped
         def add():
             self.delete(self.name)
-            self.name = "New Resource"
+            self.name = "Add too resource"
             self.newre = self.add(self.name)
             global rsearch
             self.newre.grid_columnconfigure(1,weight = 1)
@@ -379,7 +543,8 @@ class Main(ctk.CTkTabview):
             cursor.execute('SELECT rname FROM resources')
             result = cursor.fetchall()
             table = CTkTable.CTkTable(frame, values = result)
-
+            back = ctk.CTkButton(self.newre,text="Back", command =self.adminlaunch)
+            back.grid(row = 2,column =1)
             def search():
                 if resource_entry.get() != "":
                     rsearch = resource_entry.get().strip()
@@ -400,10 +565,10 @@ class Main(ctk.CTkTabview):
                             frame.pack(pady=30, padx=40)
 
                         
-                            rcount = ctk.CTkLabel(master = frame, text = ('Current count:', result[2]), font = info_font, text_color = 'black') 
+                            rcount = ctk.CTkLabel(master = frame, text = (f'Current count: {result[2]}'), font = info_font, text_color = 'black') 
                             rcount.pack(pady = 20)
 
-                            rmin = ctk.CTkLabel(master = frame, text = ('Minimum count:', result[3]), font = info_font, text_color = 'black')
+                            rmin = ctk.CTkLabel(master = frame, text = (f'Minimum count: {result[3]}'), font = info_font, text_color = 'black')
                             rmin.pack(pady = 20)
                             
                             addamount = ctk.CTkEntry(master = frame, placeholder_text= 'Enter Amount to add')
@@ -412,8 +577,16 @@ class Main(ctk.CTkTabview):
 
                             def add2():                            
                                 add_amount = addamount.get()
-                                add_amount = int(add_amount)
-                                if addamount.get() != "":
+                                def makeint():
+                                    try:
+                                        int(add_amount)
+                                        return True
+                                    except:
+                                        return False
+    
+                                    
+                                if makeint() == True:
+                                    add_amount=int(add_amount)
                                     if  add_amount > 0:
                                         newrcount = result[2]+add_amount
 
@@ -424,7 +597,7 @@ class Main(ctk.CTkTabview):
                                         cursor.execute('UPDATE inout SET incount = ?',(plus,))
                                         time = (datetime.now(tz=None))
                                         time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
-                                        cursor.execute('INSERT INTO log(action,amount,account,time) VALUES(?,?,?,?)', ("Add", add_amount, self.current_log, time))
+                                        cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("Add", add_amount, self.current_log, time,result[1]))
                                         db_connection.commit()
 
                                         tkmb.showinfo(title = "Success", message = ("Ammount", str(add_amount), "Has been added sucessfully"))
@@ -434,11 +607,12 @@ class Main(ctk.CTkTabview):
                                         tkmb.showerror(message = 'Enter a Positive Real value', title = 'Invalid input')
 
                                 else:
-                                    tkmb.showerror(message = 'Enter a Positive Real value', title = 'Invalid input')
+                                    tkmb.showerror(message = 'Enter a integer of base 10', title = 'Invalid input')
                             button = ctk.CTkButton(master = frame, text = "Add", command = add2)
                             button.pack(pady = 20)
                             back = ctk.CTkButton(frame,text="Back", command =self.adminlaunch)
                             back.pack(pady = 20)
+                        
                             frame.propagate(False)
                         showinfo()
                     else:
@@ -451,8 +625,8 @@ class Main(ctk.CTkTabview):
             button.pack(pady =20)
             table.pack()
         button = ctk.CTkButton(master = center_frame, text = "Add to Equipment",command = add)
-        add_resource_button = ctk.CTkButton(master = center_frame, text = "Add Resource",command = None)
-        add_account_button = ctk.CTkButton(master = center_frame, text = "Create New Account",command = None)
+        add_resource_button = ctk.CTkButton(master = center_frame, text = "Add Resource",command = new_re)
+        add_account_button = ctk.CTkButton(master = center_frame, text = "Create New Account",command = new_ac)
         center_frame.grid_columnconfigure(0, weight = 1)
         center_frame.grid_rowconfigure(0, weight = 1)
         center_frame.grid_rowconfigure(1, weight = 1)
@@ -546,10 +720,6 @@ class App(ctk.CTk):
         self.container = Main(self.frame)
         self.container.pack(fill ='both', expand = True)
         self.container.add_logintab()
-    
-
-
-
 app = App()
 app.after(0, lambda:app.state("zoomed"))
 app.geometry("800x800")
