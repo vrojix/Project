@@ -1,4 +1,3 @@
-from distutils.ccompiler import new_compiler
 import customtkinter as ctk
 import tkinter.messagebox as tkmb
 import sqlite3,CTkTable,yagmail,hashlib
