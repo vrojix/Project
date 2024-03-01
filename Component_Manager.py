@@ -83,6 +83,7 @@ class Main(ctk.CTkTabview):
 
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.name = 'Main'
 
 
 
@@ -649,32 +650,31 @@ class Main(ctk.CTkTabview):
         
         def confirm():
             if confpassword.get() == password.get() and username.get() != "" and len(confpassword.get())>=5:
-                if choice.get() == "Yes":
-                    import random
-                    key = ""
-                    for i in range(0,6):
-                        key = key+str(random.randint(0,9))   
-                    yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
+                import random
+                key = ""
+                for i in range(0,6):
+                    key = key+str(random.randint(0,9))   
+                yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
 
-                    to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
-                    subject = 'DO NOT RESPOND'
-                    body = (f"Confirmation key: {key}")
+                to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
+                subject = 'DO NOT RESPOND'
+                body = (f"Confirmation key: {key}")
+                yag.send(to=to, subject=subject, contents=body)
+                yag.close()
+                check = ctk.CTkInputDialog(text = "If you want to create a new account, please enter the key sent to the first admin's email")
+                attempt = check.get_input()
+                if attempt and choice.get() == "Yes":
+                    hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                    cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
+                    db_connection.commit()
+                    if adminvar == True:
+                        self.adminMenu()
+                    else:
+                        self.delete(self.name)
+                        self.add_logintab()
 
 
-                    yag.send(to=to, subject=subject, contents=body)
-                    yag.close()
-                    
-                    check = ctk.CTkInputDialog(text = "If you want to create a new admin account, please enter the key sent to the first admin's email")
-                    if check.get_input()==key:
-                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
-                        db_connection.commit()
-                        if adminvar == True:
-                            self.adminMenu()
-                        else:
-                            self.delete(self.name)
-                            self.add_logintab()
-                else:
+                elif attempt==key and choice.get() == "No":
                     hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
                     cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
                     db_connection.commit()
@@ -683,6 +683,10 @@ class Main(ctk.CTkTabview):
                     else:
                         self.delete(self.name)
                         self.add_logintab()
+                else:
+                    tkmb.showwarning(message = "Key is invalid.", title = "Invalid Input")
+                    resend = ctk.CTkButton(self.account, text = "Resend Confirmation Key", command = confirm)
+                    resend.grid(row = 4,column = 1)
             else:                    
                 tkmb.showwarning(text = "Please enter information properly", title = "Invalid Input")
                     
@@ -695,8 +699,11 @@ class Main(ctk.CTkTabview):
                 back.grid(row = 4, column= 0)   
             else:
                 def delete():
-                    self.delete(self.name)
-                    self.add_logintab()
+                    if adminvar ==True:
+                        self.adminMenu()
+                    else:
+                        self.delete(self.name)
+                        self.add_logintab()
                 
                 back = ctk.CTkButton(frame, command = delete, text= "Back")
                 back.grid(row = 4, column= 0)                 
