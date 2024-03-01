@@ -1,3 +1,4 @@
+from distutils.ccompiler import new_compiler
 import customtkinter as ctk
 import tkinter.messagebox as tkmb
 import sqlite3,CTkTable,yagmail,hashlib
@@ -84,27 +85,6 @@ class Main(ctk.CTkTabview):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
-    def add_logintab(self):
-        self.name = 'Login'
-        self.e_tab = self.add(self.name)
-
-        self.frame = ctk.CTkFrame(self.e_tab)
-        self.frame.pack(ipady=20, ipadx=60, expand = True)
-
-        self.label = ctk.CTkLabel(self.frame, text='Enter Username and Password')
-        self.label.pack(pady=12, padx=10)
-
-        self.user_entry = ctk.CTkEntry(self.frame, placeholder_text="Username")
-        self.user_entry.pack(pady=12, padx=10)
-
-        self.user_pass = ctk.CTkEntry(self.frame, placeholder_text="Password", show="*")
-        self.user_pass.pack(pady=6, padx=10)
-
-        self.button = ctk.CTkButton(self.frame, text='Login', command = self.login)
-        self.button.pack(pady = 10)
-
-        self.button = ctk.CTkButton(self.e_tab, text = 'Quit', command = quit)
-        self.button.pack()
 
 
     def trackMenu(self):
@@ -441,91 +421,7 @@ class Main(ctk.CTkTabview):
             back = ctk.CTkButton(frame,text="Back",command = self.adminMenu)
             back.grid(row=4,column =0)
         
-        def new_ac():
-            self.delete(self.name)
-            self.name = "New Account"
-            self.account = self.add(self.name)
-            
-            self.account.grid_columnconfigure(0, weight = 1)
-            self.account.grid_columnconfigure(1, weight = 1)
-            self.account.grid_columnconfigure(2,weight = 1)
-            self.account.grid_rowconfigure(0, weight = 1)
-            self.account.grid_rowconfigure(1, weight = 1)
-            self.account.grid_rowconfigure(2,weight = 1)
-            
-            font = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 23)
-            label = ctk.CTkLabel(master = self.account, text = "Create New Account",font = font)
-            label.grid(row = 0, column = 1) 
-                        
-            frame = ctk.CTkFrame(master = self.account,width=500, height= 650)
-            frame.grid_columnconfigure(0, weight = 1)
-            frame.grid_columnconfigure(1, weight = 1)
-            frame.grid_columnconfigure(2, weight = 1)
-            frame.grid_rowconfigure(3, weight = 1)   
-                     
-            frame.grid_rowconfigure(0, weight = 1)
-            frame.grid_rowconfigure(1, weight = 1)
-            frame.grid_rowconfigure(2, weight = 1)
-            frame.grid_rowconfigure(3, weight = 1)
-            frame.grid(row = 1,column=1)
-            frame.grid_propagate(False)
-            font2 = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 15)
-            enter_name = ctk.CTkLabel(frame, text = "Enter Account Name:", font = font2)            
-            enter_name.grid(row = 0, column = 0)
-            enter_pass = ctk.CTkLabel(frame, text = "Enter Password:", font = font2)            
-            enter_pass.grid(row = 1, column = 0)   
-            conf_pass = ctk.CTkLabel(frame, text = "Confirm Password:", font = font2)            
-            conf_pass.grid(row = 2, column = 0)   
-            clearance = ctk.CTkLabel(frame, text = "Clearance level Admin?:", font = font2)            
-            clearance.grid(row = 3, column = 0)         
-            username = ctk.CTkEntry(master = frame,placeholder_text="Enter Username")
-            username.grid(row = 0 ,column = 1)
-            password = ctk.CTkEntry(master = frame, placeholder_text="Enter Password",show = "*")
-            password.grid(row = 1,column = 1)
-            confpassword = ctk.CTkEntry(master = frame, placeholder_text="Confirm Password",show ="*")
-            confpassword.grid(row = 2,column = 1)
-            choice = ctk.CTkOptionMenu(master = frame, values=["No", "Yes"])
-            choice.grid(row =3,column = 1)
-            
-            def confirm():
-                if confpassword.get() == password.get() and username.get() != "" and len(confpassword.get())>=5:
-                    if choice.get() == "Yes":
-                        import random
-                        key = ""
-                        for i in range(0,6):
-                            key = key+str(random.randint(0,9))   
-                        yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
-
-                        to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
-                        subject = 'DO NOT RESPOND'
-                        body = (f"Confirmation key: {key}")
-
-
-                        yag.send(to=to, subject=subject, contents=body)
-                        yag.close()
-                        
-                        check = ctk.CTkInputDialog(text = "If you want to create a new admin account, please enter the key sent to the first admin's email")
-                        if check.get_input()==key:
-                            hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                            cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
-                            db_connection.commit()
-                            self.adminMenu()
-                    else:
-                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
-                        db_connection.commit()
-                        self.adminMenu()
-                else:                    
-                    tkmb.showwarning(text = "Please enter information properly", title = "Invalid Input")
-                        
-                        
-                        
-                        
-            confirmbut = ctk.CTkButton(frame,text = "Confirm", command= confirm)
-            confirmbut.grid(row = 4,column =1)
-            back = ctk.CTkButton(frame, command = self.adminMenu, text= "Back")
-            back.grid(row = 4, column= 0)
-                
+        
         #just a reused piece of code which has the search functions commands and conditions with some operations flipped
         def add():
             self.delete(self.name)
@@ -626,7 +522,7 @@ class Main(ctk.CTkTabview):
             table.pack()
         button = ctk.CTkButton(master = center_frame, text = "Add to Equipment",command = add)
         add_resource_button = ctk.CTkButton(master = center_frame, text = "Add Resource",command = new_re)
-        add_account_button = ctk.CTkButton(master = center_frame, text = "Create New Account",command = new_ac)
+        add_account_button = ctk.CTkButton(master = center_frame, text = "Create New Account",command = self.new_ac)
         center_frame.grid_columnconfigure(0, weight = 1)
         center_frame.grid_rowconfigure(0, weight = 1)
         center_frame.grid_rowconfigure(1, weight = 1)
@@ -644,7 +540,7 @@ class Main(ctk.CTkTabview):
             tkmb.showerror(message = "You don't have admin access.", title = "No Permission")
 
 
-
+    
     #The following add function switches from the previous stored frame and uses
     def add_menu(self):
         self.delete(self.name)
@@ -706,6 +602,133 @@ class Main(ctk.CTkTabview):
                 self.after(1500,self.perm.destroy)
         else:
             tkmb.showerror(title = "Invalid input",message = "You're already logged in")
+    def new_ac(self):
+        self.delete(self.name)
+        self.name = "New Account"
+        self.account = self.add(self.name)
+        
+        self.account.grid_columnconfigure(0, weight = 1)
+        self.account.grid_columnconfigure(1, weight = 1)
+        self.account.grid_columnconfigure(2,weight = 1)
+        self.account.grid_rowconfigure(0, weight = 1)
+        self.account.grid_rowconfigure(1, weight = 1)
+        self.account.grid_rowconfigure(2,weight = 1)
+        
+        font = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 23)
+        label = ctk.CTkLabel(master = self.account, text = "Create New Account",font = font)
+        label.grid(row = 0, column = 1) 
+                    
+        frame = ctk.CTkFrame(master = self.account,width=500, height= 650)
+        frame.grid_columnconfigure(0, weight = 1)
+        frame.grid_columnconfigure(1, weight = 1)
+        frame.grid_columnconfigure(2, weight = 1)
+        frame.grid_rowconfigure(3, weight = 1)   
+                    
+        frame.grid_rowconfigure(0, weight = 1)
+        frame.grid_rowconfigure(1, weight = 1)
+        frame.grid_rowconfigure(2, weight = 1)
+        frame.grid_rowconfigure(3, weight = 1)
+        frame.grid(row = 1,column=1)
+        frame.grid_propagate(False)
+        font2 = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 15)
+        enter_name = ctk.CTkLabel(frame, text = "Enter Account Name:", font = font2)            
+        enter_name.grid(row = 0, column = 0)
+        enter_pass = ctk.CTkLabel(frame, text = "Enter Password:", font = font2)            
+        enter_pass.grid(row = 1, column = 0)   
+        conf_pass = ctk.CTkLabel(frame, text = "Confirm Password:", font = font2)            
+        conf_pass.grid(row = 2, column = 0)   
+        clearance = ctk.CTkLabel(frame, text = "Clearance level Admin?:", font = font2)            
+        clearance.grid(row = 3, column = 0)         
+        username = ctk.CTkEntry(master = frame,placeholder_text="Enter Username")
+        username.grid(row = 0 ,column = 1)
+        password = ctk.CTkEntry(master = frame, placeholder_text="Enter Password",show = "*")
+        password.grid(row = 1,column = 1)
+        confpassword = ctk.CTkEntry(master = frame, placeholder_text="Confirm Password",show ="*")
+        confpassword.grid(row = 2,column = 1)
+        choice = ctk.CTkOptionMenu(master = frame, values=["No", "Yes"])
+        choice.grid(row =3,column = 1)
+        
+        def confirm():
+            if confpassword.get() == password.get() and username.get() != "" and len(confpassword.get())>=5:
+                if choice.get() == "Yes":
+                    import random
+                    key = ""
+                    for i in range(0,6):
+                        key = key+str(random.randint(0,9))   
+                    yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
+
+                    to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
+                    subject = 'DO NOT RESPOND'
+                    body = (f"Confirmation key: {key}")
+
+
+                    yag.send(to=to, subject=subject, contents=body)
+                    yag.close()
+                    
+                    check = ctk.CTkInputDialog(text = "If you want to create a new admin account, please enter the key sent to the first admin's email")
+                    if check.get_input()==key:
+                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
+                        db_connection.commit()
+                        if adminvar == True:
+                            self.adminMenu()
+                        else:
+                            self.delete(self.name)
+                            self.add_logintab()
+                else:
+                    hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                    cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
+                    db_connection.commit()
+                    if adminvar == True:
+                        self.adminMenu()
+                    else:
+                        self.delete(self.name)
+                        self.add_logintab()
+            else:                    
+                tkmb.showwarning(text = "Please enter information properly", title = "Invalid Input")
+                    
+                                         
+        confirmbut = ctk.CTkButton(frame,text = "Confirm", command= confirm)
+        confirmbut.grid(row = 4,column =1)
+        def check_admin():
+            if adminvar == True:
+                back = ctk.CTkButton(frame, command = self.adminMenu, text= "Back")
+                back.grid(row = 4, column= 0)   
+            else:
+                def delete():
+                    self.delete(self.name)
+                    self.add_logintab()
+                
+                back = ctk.CTkButton(frame, command = delete, text= "Back")
+                back.grid(row = 4, column= 0)                 
+        check_admin()
+                        
+ 
+                
+    def add_logintab(self):
+        self.name = 'Login'
+        self.e_tab = self.add(self.name)
+
+        self.frame = ctk.CTkFrame(self.e_tab)
+        self.frame.pack(ipady=20, ipadx=60, expand = True)
+
+        self.label = ctk.CTkLabel(self.frame, text='Enter Username and Password')
+        self.label.pack(pady=12, padx=10)
+
+        self.user_entry = ctk.CTkEntry(self.frame, placeholder_text="Username")
+        self.user_entry.pack(pady=12, padx=10)
+
+        self.user_pass = ctk.CTkEntry(self.frame, placeholder_text="Password", show="*")
+        self.user_pass.pack(pady=6, padx=10)
+
+        self.button = ctk.CTkButton(self.frame, text='Login', command = self.login)
+        self.button.pack(pady = 10)
+
+        self.button = ctk.CTkButton(self.e_tab, text = 'Quit', command = quit)
+        self.button.pack()
+
+        register = ctk.CTkButton(self.frame,command =self.new_ac, text = "Register", fg_color="purple", hover_color="grey")
+        register.pack()
 
 class App(ctk.CTk):
 
