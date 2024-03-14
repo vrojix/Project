@@ -1,20 +1,57 @@
+import importlib
+import subprocess
+import sqlite3
+db_connection = sqlite3.connect('project.db')
+cursor = db_connection.cursor()
+
+def lib():
+    # Define custom library names
+    required_libraries = {
+        'ctk': 'customtkinter',
+        'tkmb': 'tkinter.messagebox',
+        'sqlite3': 'sqlite3',
+        'yagmail': 'yagmail',
+        'CTkTable': 'CTkTable',
+        'pillow':'pillow',
+        'matplotlib':'matplotlib',
+        'hashlib':'hashlib',
+        'datetime':'datetime'
+        
+    }
+
+
+    #Assigns the first key as variable custom_name
+    #Assings the second key as the actual_name
+    #Loops through the dictionary required_libraries when it is a tuple in a list
+    for custom_name, actual_name in required_libraries.items():
+        try:
+            #tries to 
+            importlib.import_module(actual_name)
+            print(f"{custom_name} (as {actual_name}) is already installed.")
+        except ImportError:
+            print(f"{custom_name} (as {actual_name}) is not installed. Attempting to install...")
+            try:
+                subprocess.check_call(['pip', 'install', actual_name])
+                print(f"{custom_name} (as {actual_name}) has been successfully installed.")
+            except subprocess.CalledProcessError:
+                print(f"Failed to install {custom_name} (as {actual_name}). Please install it manually.")
+
 import customtkinter as ctk
 import tkinter.messagebox as tkmb
-import sqlite3,CTkTable,yagmail,hashlib
+import CTkTable,yagmail,hashlib
 from datetime import *
 import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-global buttoncount
 
+global buttoncount
 
 buttoncount = 0
 
 global adminvar
 adminvar = 0
 #Database creation
-db_connection = sqlite3.connect('project.db')
-cursor = db_connection.cursor()
+
 
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS accounts (
@@ -51,6 +88,12 @@ cursor.execute('''
         incount INTEGER NOT NULL,        
         outcount INTEGER NOT NULL
                
+    )
+''')
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS setup(
+        binary INTEGER PRIMARY KEY NOT NULL
     )
 ''')
 
@@ -97,119 +140,9 @@ class Main(ctk.CTkTabview):
 
         lable = ctk.CTkLabel(master = frame, text = "Enter reasource name")
         lable.pack()
-        searchBox = ctk.CTkEntry(master = frame, placeholder_text="Enter Resource name")
-        searchBox.pack(pady = 30)
-
-        def search():
-            if searchBox.get() != "":
-                rsearch = searchBox.get().strip()
-                cursor.execute('SELECT * FROM resources WHERE rname = ?', (rsearch,))
-                self.result = cursor.fetchone()
-                if self.result is not None: 
-                    def showinfo():
-                        self.delete(self.name)
-                        self.name = "Result"
-                        self.resulttab = self.add(self.name)
-                        info_font = ctk.CTkFont(family = "Arial", weight = 'bold', size = 23)
-
-                        rname = ctk.CTkLabel(master = self.resulttab,text = self.result[1].upper(), font = info_font)
-                        rname.pack(pady = 150)
-
-                        frame = ctk.CTkFrame(master = self.resulttab, fg_color= 'white')
-                        frame.pack(ipady=20, ipadx=80)
-                    
-                        rcount = ctk.CTkLabel(master = frame, text = 'Current count: ' + str(self.result[2]), font = info_font, text_color = 'black') 
-                        rcount.pack(pady = 20)
-                        rcount.update()
-                        rmin = ctk.CTkLabel(master = frame, text = 'Minimum count: '+ str(self.result[3]), font = info_font, text_color = 'black')
-                        rmin.pack(pady = 20)
-                        
-                        takeamount = ctk.CTkEntry(master = frame, placeholder_text= 'Enter Amount to take')
-                        takeamount.pack()
-                        
-                        self.orderflag = 0
-                        
-                        def order():
-                            if self.orderflag >0:
-                                ordertime = (datetime.now(tz=None))
-                                ordertime = str(f"{ordertime.year}/{ordertime.day}/{ordertime.month}/{ordertime.hour}:{ordertime.minute}")
-                                inserted_data = (self.result[1], self.result[4], ordertime)
-                                insert_sql = "INSERT INTO orders(orname,ocount,otime) VALUES(?,?,?)"
-                                cursor.execute(insert_sql, inserted_data)
-                                db_connection.commit()
-                                self.orderbutton.destroy()
-                                sucess = ctk.CTkLabel(master=frame, text="Successfully sent in order request.")
-                                sucess.pack()
-                                self.orderflag = 0
-                            self.orderbutton.configure(text = "Confirm?", fg_color="red")
-                            self.orderflag=+1
-
-
-
-                        def take():
-                            string = "String"
-                            take_amount = takeamount.get()
-                            try:
-                                take_amount = int(take_amount)
-                            except:
-                                take_amount = take_amount
-                            if type(take_amount) != type(string) and take_amount != "" and take_amount > 0 and take_amount<= self.result[2]:
-                                newrcount = self.result[2] - take_amount
-                                cursor.execute('UPDATE resources SET rcount = ? WHERE rname = ?',(newrcount, rsearch))
-                                cursor.execute('SELECT outcount FROM inout')
-                                out = cursor.fetchone()
-                                outamount = out[0] + take_amount
-                                cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
-                                time = (datetime.now(tz=None))
-                                time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
-                                cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("Take", take_amount, self.current_log, time,self.result[1]))
-                                db_connection.commit()
-                                perm = ctk.CTkLabel(master = frame, text_color='green',text = (f"Amount {str(take_amount)} taken successfully."))
-                                perm.pack()
-                                self.after(1500,perm.destroy)
-                                
-                                if self.result[2]<= self.result[3] or take_amount>=self.result[2]:
-                                    try:
-                                        yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
-
-                                        to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
-                                        subject = 'DO NOT RESPOND'
-                                        body = (f'''<h3>Hitting Min Level!</h3>
-                                            This is an automatic order request, notifying you that the resource <b>{self.result[1]}</b> has reached its minimum.
-                                            Please submit an order of minimum <b>{self.result[4]}</b> of this resource.
-                                            It currently holds <b>{self.result[2]}</b>.
-                                            Again, please submit this order of <b>{self.result[4]}</b>.
-                                            
-                                            Kind Regards,
-                                            <h1><b><i>Inventory Manager</b></i></h1>''')
-
-
-                                        yag.send(to=to, subject=subject, contents=body)
-                                        yag.close()
-                                    except:
-                                        tkmb.showerror(message = "Establish connection for email to be sent", title = "Lack of Connectivity")
-                            else:
-                                perm = ctk.CTkLabel(master = frame, text_color='red',text = 'Invalid Input')
-                                perm.pack()
-                                self.after(1500,perm.destroy)
-                            cursor.execute('SELECT * FROM resources WHERE rname = ?', (rsearch,))
-                            self.result = cursor.fetchone()
-                        self.takebutton = ctk.CTkButton(master = frame, text = "Take", command = take, width=200, height =40)
-                        self.takebutton.pack(pady = "20")
-
-                        self.orderbutton = ctk.CTkButton(master=frame, text = "Order", command = order, width=200, height =40)
-                        self.orderbutton.pack()
-
-
-                        backbutton = ctk.CTkButton(master = self.resulttab, text = "Back", command=self.add_menu)
-                        backbutton.pack()
-                    showinfo()
-                else:
-                    noinfo = ctk.CTkLabel(master = self.rtm, text_color='red',text = 'Invalid Input')
-                    noinfo.pack()
-                    self.after(1500,noinfo.destroy)
-
-        search_button = ctk.CTkButton(master = frame,command=search, text="Search")
+        self.searchBox = ctk.CTkEntry(master = frame, placeholder_text="Enter Resource name")
+        self.searchBox.pack(pady = 30)
+        search_button = ctk.CTkButton(master = frame,command=self.search, text="Search")
         search_button.pack()
         try:    
             tabview = ctk.CTkTabview(master = frame)
@@ -228,6 +161,133 @@ class Main(ctk.CTkTabview):
             self.add_menu()
         self.button = ctk.CTkButton(master = self.rtm, text = "Back", command = goback2menu)
         self.button.pack()
+
+
+    def search(self):
+        if self.searchBox.get() != "":
+            if self.searchBox.get().strip().lower() != None:
+                rsearch = self.searchBox.get().strip().lower()
+            
+            cursor.execute('SELECT * FROM resources WHERE rname = ?', (rsearch,))
+            self.result = cursor.fetchone()
+            if self.result is not None: 
+                def showinfo():
+                    self.delete(self.name)
+                    self.name = "Result"
+                    self.resulttab = self.add(self.name)
+                    info_font = ctk.CTkFont(family = "Arial", weight = 'bold', size = 23)
+
+                    rname = ctk.CTkLabel(master = self.resulttab,text = self.result[1].upper(), font = info_font)
+                    rname.pack(pady = 150)
+
+                    frame = ctk.CTkFrame(master = self.resulttab, fg_color= 'white')
+                    frame.pack(ipady=20, ipadx=80)
+                
+                    rcount = ctk.CTkLabel(master = frame, text = 'Current count: ' + str(self.result[2]), font = info_font, text_color = 'black') 
+                    rcount.pack(pady = 20)                        
+                    rmin = ctk.CTkLabel(master = frame, text = 'Minimum count: '+ str(self.result[3]), font = info_font, text_color = 'black')
+                    rmin.pack(pady = 20)
+                    
+                    takeamount = ctk.CTkEntry(master = frame, placeholder_text= 'Enter Amount to take/order')
+                    takeamount.pack()
+                    
+                    self.orderflag = 0
+                    
+                    def order():
+                        if not (takeamount.get() == "" or int(takeamount.get()) <= 0):       
+                            if self.orderflag >0:
+                                ordertime = (datetime.now(tz=None))
+                                order_ammount = takeamount.get()
+                                ordertime = str(f"{ordertime.year}/{ordertime.day}/{ordertime.month}/{ordertime.hour}:{ordertime.minute}")
+                                inserted_data = (self.result[1],order_ammount, ordertime)
+                                insert_sql = "INSERT INTO orders(orname,ocount,otime) VALUES(?,?,?)"
+                                cursor.execute(insert_sql, inserted_data)
+                                time = (datetime.now(tz=None))
+                                time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")                                   
+                                cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("Order", order_ammount,self.current_log, time,self.result[1]))                                    
+                                db_connection.commit()
+                                self.orderbutton.destroy()
+                                sucess = ctk.CTkLabel(master=frame, text="Successfully sent in order request.")
+                                sucess.pack()
+                                self.orderflag = 0
+                            
+                            try:
+                                self.orderbutton.configure(text = "Confirm?", fg_color="red")
+                                self.orderflag=1
+                            except:
+                                pass
+                        else:
+                            tkmb.showerror("Error", "Please enter a valid amount.")
+
+
+
+                    def take():
+                        string = "String"
+                        take_amount = takeamount.get()
+                        try:
+                            take_amount = int(take_amount)
+                        except:
+                            take_amount = take_amount
+                        if type(take_amount) != type(string) and take_amount != "" and take_amount > 0 and take_amount<= self.result[2]:
+                            newrcount = self.result[2] - take_amount
+                            cursor.execute('UPDATE resources SET rcount = ? WHERE rname = ?',(newrcount, rsearch))
+                            cursor.execute('SELECT outcount FROM inout')
+                            out = cursor.fetchone()
+                            outamount = out[0] + take_amount
+                            cursor.execute('UPDATE inout SET outcount = ?',(outamount,))
+                            time = (datetime.now(tz=None))
+                            time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
+                            cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("Take", take_amount, self.current_log, time,self.result[1]))
+                            db_connection.commit()
+                            perm = ctk.CTkLabel(master = frame, text_color='green',text = (f"Amount {str(take_amount)} taken successfully."))
+                            perm.pack()
+                            self.after(1500,perm.destroy)
+                            cursor.execute('SELECT * FROM resources WHERE rname = ?', (rsearch,))
+                            self.result = cursor.fetchone()
+                            rcount.configure(text = 'Current count: ' + str(self.result[2]))
+                            
+                            if self.result[2]<= self.result[3] or take_amount>=self.result[2]:
+                                try:
+                                    yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
+
+                                    to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
+                                    subject = 'DO NOT RESPOND'
+                                    body = (f'''<h3>Hitting Min Level!</h3>
+                                        This is an automatic order request, notifying you that the resource <b>{self.result[1]}</b> has reached its minimum.
+                                        Please submit an order of minimum <b>{self.result[4]}</b> of this resource.
+                                        It currently holds <b>{self.result[2]}</b>.
+                                        Again, please submit this order of <b>{self.result[4]}</b>.
+                                        
+                                        Kind Regards,
+                                        <h1><b><i>Inventory Manager</b></i></h1>''')
+
+
+                                    yag.send(to=to, subject=subject, contents=body)
+                                    yag.close()
+                                except:
+                                    tkmb.showerror(message = "Establish connection for email to be sent", title = "Lack of Connectivity")
+                        else:
+                            perm = ctk.CTkLabel(master = frame, text_color='red',text = 'Invalid Input')
+                            perm.pack()
+                            self.after(1500,perm.destroy)
+                        cursor.execute('SELECT * FROM resources WHERE rname = ?', (rsearch,))
+                        self.result = cursor.fetchone()
+                    self.takebutton = ctk.CTkButton(master = frame, text = "Take", command = take, width=200, height =40)
+                    self.takebutton.pack(pady = "20")
+
+                    self.orderbutton = ctk.CTkButton(master=frame, text = "Order", command = order, width=200, height =40)
+                    self.orderbutton.pack()
+
+
+                    backbutton = ctk.CTkButton(master = self.resulttab, text = "Back", command=self.add_menu)
+                    backbutton.pack()
+                showinfo()
+            else:
+                noinfo = ctk.CTkLabel(master = self.rtm, text_color='red',text = 'Invalid Input')
+                noinfo.pack()
+                self.after(1500,noinfo.destroy)
+
+
 
     def adminMenu(self):
         self.delete(self.name)
@@ -394,13 +454,18 @@ class Main(ctk.CTkTabview):
             def create():
                 if rname.get() !="":
                     name = rname.get()
+                    name = name.lower()
                     count = rcount.get()
                     min = rmin.get()
                     order = rorder.get()
                     def add2table():
                         try:
                             cursor.execute('INSERT INTO resources (rname,rcount,rmin,rorder) VALUES(?,?,?,?)',(name,count,min,order,))
+                            time = (datetime.now(tz=None))
+                            time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
+                            cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("New Re", count,self.current_log, time,name))
                             db_connection.commit()
+                            tkmb.showinfo(title = "New Resource", message = "New Resource Added Successfully")
                             self.adminMenu()
                             
                         except:
@@ -497,6 +562,7 @@ class Main(ctk.CTkTabview):
                                         db_connection.commit()
 
                                         tkmb.showinfo(title = "Success", message = ("Ammount", str(add_amount), "Has been added sucessfully"))
+                                        
                                         cursor.execute('SELECT * FROM resources WHERE rname = ?',(rsearch,))
 
                                     else:
@@ -653,40 +719,46 @@ class Main(ctk.CTkTabview):
                 import random
                 key = ""
                 for i in range(0,6):
-                    key = key+str(random.randint(0,9))   
-                yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
+                    key = key+str(random.randint(0,9))
+                try:
+                    yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
 
-                to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
-                subject = 'DO NOT RESPOND'
-                body = (f"Confirmation key: {key}")
-                yag.send(to=to, subject=subject, contents=body)
-                yag.close()
-                check = ctk.CTkInputDialog(text = "If you want to create a new account, please enter the key sent to the first admin's email")
-                attempt = check.get_input()
-                if attempt and choice.get() == "Yes":
-                    hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                    cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
-                    db_connection.commit()
-                    if adminvar == True:
-                        self.adminMenu()
+                    to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
+                    subject = 'DO NOT RESPOND'
+                    body = (f"Confirmation key: {key}")
+                    yag.send(to=to, subject=subject, contents=body)
+                    yag.close()
+                    check = ctk.CTkInputDialog(text = "If you want to create a new account, please enter the key sent to the first admin's email")
+                    attempt = check.get_input()
+                    if attempt== key and choice.get() == "Yes":
+                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
+                        time = (datetime.now(tz=None))
+                        time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
+                        cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("New Ac",0,username.get(), time,"Admin"))
+                        db_connection.commit()
+                        if adminvar == True:
+                            self.adminMenu()
+                        else:
+                            self.delete(self.name)
+                            self.add_logintab()
+
+
+                    elif attempt==key and choice.get() == "No":
+                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
+                        db_connection.commit()
+                        if adminvar == True:
+                            self.adminMenu()
+                        else:
+                            self.delete(self.name)
+                            self.add_logintab()
                     else:
-                        self.delete(self.name)
-                        self.add_logintab()
-
-
-                elif attempt==key and choice.get() == "No":
-                    hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                    cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
-                    db_connection.commit()
-                    if adminvar == True:
-                        self.adminMenu()
-                    else:
-                        self.delete(self.name)
-                        self.add_logintab()
-                else:
-                    tkmb.showwarning(message = "Key is invalid.", title = "Invalid Input")
-                    resend = ctk.CTkButton(self.account, text = "Resend Confirmation Key", command = confirm)
-                    resend.grid(row = 4,column = 1)
+                        tkmb.showwarning(message = "Key is invalid.", title = "Invalid Input")
+                        resend = ctk.CTkButton(self.account, text = "Resend Confirmation Key", command = confirm)
+                        resend.grid(row = 4,column = 1)
+                except:
+                    tkmb.showwarning(message = "Could not send confirmation key. Please establish connection and try again.", title = "Invalid Connection")            
             else:                    
                 tkmb.showwarning(text = "Please enter information properly", title = "Invalid Input")
                     
@@ -721,15 +793,20 @@ class Main(ctk.CTkTabview):
         self.label = ctk.CTkLabel(self.frame, text='Enter Username and Password')
         self.label.pack(pady=12, padx=10)
 
+
+            
         self.user_entry = ctk.CTkEntry(self.frame, placeholder_text="Username")
         self.user_entry.pack(pady=12, padx=10)
-
         self.user_pass = ctk.CTkEntry(self.frame, placeholder_text="Password", show="*")
         self.user_pass.pack(pady=6, padx=10)
 
-        self.button = ctk.CTkButton(self.frame, text='Login', command = self.login)
-        self.button.pack(pady = 10)
+        self.logbutton = ctk.CTkButton(self.frame, text='Login', command = self.login)
+        self.logbutton.pack(pady = 10)
+        
 
+        
+
+       
         self.button = ctk.CTkButton(self.e_tab, text = 'Quit', command = quit)
         self.button.pack()
 
