@@ -36,6 +36,7 @@ def lib():
             except subprocess.CalledProcessError:
                 print(f"Failed to install {custom_name} (as {actual_name}). Please install it manually.")
 
+lib()   
 import customtkinter as ctk
 import tkinter.messagebox as tkmb
 import CTkTable,yagmail,hashlib
@@ -697,9 +698,11 @@ class Main(ctk.CTkTabview):
         frame.grid(row = 1,column=1)
         frame.grid_propagate(False)
         font2 = ctk.CTkFont(family = "Helvetica", weight = 'bold', size = 15)
-        enter_name = ctk.CTkLabel(frame, text = "Enter Account Name:", font = font2)            
+        enter_name = ctk.CTkLabel(frame, text = """Enter Account Name:
+(No spaces)""", font = font2)            
         enter_name.grid(row = 0, column = 0)
-        enter_pass = ctk.CTkLabel(frame, text = "Enter Password:", font = font2)            
+        enter_pass = ctk.CTkLabel(frame, text = """Enter Password:
+(No spaces)""", font = font2)            
         enter_pass.grid(row = 1, column = 0)   
         conf_pass = ctk.CTkLabel(frame, text = "Confirm Password:", font = font2)            
         conf_pass.grid(row = 2, column = 0)   
@@ -707,7 +710,7 @@ class Main(ctk.CTkTabview):
         clearance.grid(row = 3, column = 0)         
         username = ctk.CTkEntry(master = frame,placeholder_text="Enter Username")
         username.grid(row = 0 ,column = 1)
-        password = ctk.CTkEntry(master = frame, placeholder_text="Enter Password",show = "*")
+        password = ctk.CTkEntry(master = frame, placeholder_text="Pass Above 5 Char",show = "*")
         password.grid(row = 1,column = 1)
         confpassword = ctk.CTkEntry(master = frame, placeholder_text="Confirm Password",show ="*")
         confpassword.grid(row = 2,column = 1)
@@ -715,52 +718,60 @@ class Main(ctk.CTkTabview):
         choice.grid(row =3,column = 1)
         
         def confirm():
-            if confpassword.get() == password.get() and username.get() != "" and len(confpassword.get())>=5:
-                import random
-                key = ""
-                for i in range(0,6):
-                    key = key+str(random.randint(0,9))
-                try:
-                    yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
-
-                    to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
-                    subject = 'DO NOT RESPOND'
-                    body = (f"Confirmation key: {key}")
-                    yag.send(to=to, subject=subject, contents=body)
-                    yag.close()
-                    check = ctk.CTkInputDialog(text = "If you want to create a new account, please enter the key sent to the first admin's email")
-                    attempt = check.get_input()
-                    if attempt== key and choice.get() == "Yes":
-                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
-                        time = (datetime.now(tz=None))
-                        time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
-                        cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("New Ac",0,username.get(), time,"Admin"))
-                        db_connection.commit()
-                        if adminvar == True:
-                            self.adminMenu()
-                        else:
-                            self.delete(self.name)
-                            self.add_logintab()
-
-
-                    elif attempt==key and choice.get() == "No":
-                        hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
-                        cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
-                        db_connection.commit()
-                        if adminvar == True:
-                            self.adminMenu()
-                        else:
-                            self.delete(self.name)
-                            self.add_logintab()
-                    else:
-                        tkmb.showwarning(message = "Key is invalid.", title = "Invalid Input")
-                        resend = ctk.CTkButton(self.account, text = "Resend Confirmation Key", command = confirm)
-                        resend.grid(row = 4,column = 1)
-                except:
-                    tkmb.showwarning(message = "Could not send confirmation key. Please establish connection and try again.", title = "Invalid Connection")            
+            print(username.get())
+            if username.get().strip() =="" or password.get().strip()=="" or confpassword.get().strip()=="":
+                tkmb.showerror(message="Fill all fields", title="Missing Fields")
             else:                    
-                tkmb.showwarning(text = "Please enter information properly", title = "Invalid Input")
+                if len(confpassword.get())>=5:
+                    if confpassword.get() == password.get():
+                        import random
+                        key = ""
+                        for i in range(0,6):
+                            key = key+str(random.randint(0,9))
+                        try:
+                            yag = yagmail.SMTP('inventorymanagerbot','feio avya dxhj dcst')
+
+                            to = ['davis.g@stac.southwark.sch.uk','favisboss@gmail.com']
+                            subject = 'DO NOT RESPOND'
+                            body = (f"Confirmation key: {key}")
+                            yag.send(to=to, subject=subject, contents=body)
+                            yag.close()
+                            check = ctk.CTkInputDialog(text = "If you want to create a new account, please enter the key sent to the first admin's email")
+                            attempt = check.get_input()
+                            if attempt== key and choice.get() == "Yes":
+                                hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                                cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","yes"))
+                                time = (datetime.now(tz=None))
+                                time = str(f"{time.day}/{time.month} | {time.hour}:{time.minute}")
+                                cursor.execute('INSERT INTO log(action,amount,account,time,item) VALUES(?,?,?,?,?)', ("New Ac",0,username.get(), time,"Admin"))
+                                db_connection.commit()
+                                if adminvar == True:
+                                    self.adminMenu()
+                                else:
+                                    self.delete(self.name)
+                                    self.add_logintab()
+
+
+                            elif attempt==key and choice.get() == "No":
+                                hashedpass = hashlib.sha1(password.get().encode()).hexdigest()
+                                cursor.execute('INSERT INTO accounts (username, password, teacher,admin) VALUES(?,?,?,?)',(username.get(),hashedpass,"yes","no"))
+                                db_connection.commit()
+                                if adminvar == True:
+                                    self.adminMenu()
+                                else:
+                                    self.delete(self.name)
+                                    self.add_logintab()
+                            else:
+                                tkmb.showwarning(message = "Key is invalid.", title = "Invalid Input")
+                                resend = ctk.CTkButton(self.account, text = "Resend Confirmation Key", command = confirm)
+                                resend.grid(row = 4,column = 1)
+                        except:
+                            tkmb.showwarning(message = "Could not send confirmation key. Please establish connection and try again.", title = "Invalid Connection")            
+                    else:
+                        tkmb.showerror(title="Passwords don't match", message="Passwords don't match. Try again")
+                else:
+                    tkmb.showerror(title="Password has to be longer than 5 Character", message="Password has to be longer than 5 Character")
+                
                     
                                          
         confirmbut = ctk.CTkButton(frame,text = "Confirm", command= confirm)
