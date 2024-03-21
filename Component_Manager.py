@@ -4,6 +4,29 @@ import sqlite3
 db_connection = sqlite3.connect('project.db')
 cursor = db_connection.cursor()
 
+# Connect to the database
+db_connection = sqlite3.connect('project.db')
+cursor = db_connection.cursor()
+
+# Function to check if inout table is empty
+def is_inout_empty():
+    cursor.execute('SELECT COUNT(*) FROM inout')
+    count = cursor.fetchone()[0]
+    return count == 0
+
+# Function to insert values into inout table
+def insert_inout_values():
+    try:
+        cursor.execute('INSERT OR IGNORE INTO inout (incount, outcount) VALUES (?, ?)', (0, 0))
+        db_connection.commit()
+        print("Values inserted into inout table.")
+    except sqlite3.Error as e:
+        print("Error inserting values into inout table:", e)
+
+
+    
+
+
 def lib():
     # Define custom library names
     required_libraries = {
@@ -110,11 +133,6 @@ cursor.execute('''
 ''')
 
 
-cursor.execute('SELECT outcount FROM inout')
-check = cursor.fetchone()
-if check == None:
-    cursor.execute('INSERT INTO inout(outcount,incount) VALUES(0,0)')
-    db_connection.commit()
 
 
 
@@ -177,12 +195,22 @@ class Main(ctk.CTkTabview):
                     self.name = "Result"
                     self.resulttab = self.add(self.name)
                     info_font = ctk.CTkFont(family = "Arial", weight = 'bold', size = 23)
+                    self.resulttab.grid_columnconfigure(0, weight = 1)
+                    self.resulttab.grid_columnconfigure(1, weight = 1)
+                    self.resulttab.grid_columnconfigure(2, weight = 1)
+                    self.resulttab.grid_rowconfigure(3, weight = 1)   
+                             
+                    self.resulttab.grid_rowconfigure(0, weight = 1)
+                    self.resulttab.grid_rowconfigure(1, weight = 1)
+                    self.resulttab.grid_rowconfigure(2, weight = 1)
+                    self.resulttab.grid_rowconfigure(3, weight = 1)
 
                     rname = ctk.CTkLabel(master = self.resulttab,text = self.result[1].upper(), font = info_font)
-                    rname.pack(pady = 150)
+                    rname.grid(row=0, column=1)
 
                     frame = ctk.CTkFrame(master = self.resulttab, fg_color= 'white')
-                    frame.pack(ipady=20, ipadx=80)
+                    frame.grid(row=1,column=1,ipady=100, ipadx=100)
+                    frame.grid_propagate(False)
                 
                     rcount = ctk.CTkLabel(master = frame, text = 'Current count: ' + str(self.result[2]), font = info_font, text_color = 'black') 
                     rcount.pack(pady = 20)                        
@@ -281,7 +309,7 @@ class Main(ctk.CTkTabview):
 
 
                     backbutton = ctk.CTkButton(master = self.resulttab, text = "Back", command=self.add_menu)
-                    backbutton.pack()
+                    backbutton.grid(row=2,column=1)
                 showinfo()
             else:
                 noinfo = ctk.CTkLabel(master = self.rtm, text_color='red',text = 'Invalid Input')
