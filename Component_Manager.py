@@ -521,6 +521,8 @@ class Main(ctk.CTkTabview):
             self.delete(self.name)
             self.name = "Add too resource"
             self.newre = self.add(self.name)
+            back = ctk.CTkButton(self.newre,text="Back", command =self.adminlaunch)
+            back.grid(row = 2,column =1)
             global rsearch
             self.newre.grid_columnconfigure(1,weight = 1)
             self.newre.grid_rowconfigure(0,weight = 1)
@@ -533,8 +535,7 @@ class Main(ctk.CTkTabview):
             cursor.execute('SELECT rname FROM resources')
             result = cursor.fetchall()
             table = CTkTable.CTkTable(frame, values = result)
-            back = ctk.CTkButton(self.newre,text="Back", command =self.adminlaunch)
-            back.grid(row = 2,column =1)
+
             def search():
                 if resource_entry.get() != "":
                     rsearch = resource_entry.get().strip()
