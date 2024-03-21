@@ -4,6 +4,8 @@ import sqlite3
 db_connection = sqlite3.connect('project.db')
 cursor = db_connection.cursor()
 
+import sqlite3
+
 # Connect to the database
 db_connection = sqlite3.connect('project.db')
 cursor = db_connection.cursor()
@@ -24,7 +26,9 @@ def insert_inout_values():
         print("Error inserting values into inout table:", e)
 
 
-    
+
+
+
 
 
 def lib():
@@ -134,7 +138,9 @@ cursor.execute('''
 
 
 
-
+# Check if inout table is empty and insert values if necessary
+if is_inout_empty():
+    insert_inout_values()
 
 db_connection.commit()
 
